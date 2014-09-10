@@ -1,8 +1,10 @@
 ;-------------------------------------------------------------
 ; Lab1
-; Dr. Coulston, 08 SEP 2014
+; Jeremy Gruszka, 08 SEP 2014
 ;
-; Calculator
+; Calculator -- Takes in an array containing hex bytes.  The program converts the hex bytes into values and
+;				operations for calculating.  The calculator performs the correct operation and then stores
+;				all values into memory
 ;-------------------------------------------------------------
             .cdecls C,LIST,"msp430.h"       ; Include device header file
 
@@ -17,8 +19,13 @@
             .data
             .bss	store, 0x0200
             .text
-
+            
+; this array is the array that the calculator works with
 eqArray		.byte	0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0xDD, 0x44, 0x08, 0x22, 0x09, 0x44, 0xFF, 0x22, 0xFD, 0x55
+
+Add:		.equ	0x11	;addition operation constant
+Sub:		.equ	0x22	;subtraction operation constant
+Clear:		.equ	0x44	;clearing operation constant
 ;-------------------------------------------------------------------------------
 RESET       mov.w   #__STACK_END,SP         ; Initialize stackpointer
 StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
@@ -37,11 +44,12 @@ main
 
 
 ;-------------------------------------------------------------------------------
-; Checks to see if the operation is an 11, and if so, adds the two operands together
+; Checks to see if the operation is an 11, and if so, adds the two operands together.
+; If not, jumps to the next section to check for subtraction
 ;-------------------------------------------------------------------------------
-check11
-			cmp.b	#0x11, R7
-			jnz		check22
+checkAdd
+			cmp.b	#Add, R7
+			jnz		checkSub
 			mov.b	R6, R9
 			add.b	R8, R9
 			jnc		storeAdd
@@ -49,36 +57,37 @@ check11
 storeAdd
 			mov.b	R9, 0(R10)
 			inc.w	R10
-			jmp		non44op
+			jmp		nonClearOp
 
 
 
 ;-------------------------------------------------------------------------------
-; Checks to see if the operation is an 22, and if so, subtracts the two operands
+; Checks to see if the operation is an 22, and if so, subtracts the two operands.
+; If not, jumps to the next section to check for a clear function
 ;-------------------------------------------------------------------------------
-check22
-			cmp.b	#0x22, R7
-			jnz		check44
+checkSub
+			cmp.b	#Sub, R7
+			jnz		checkClear
 			mov.b	R6, R9
 			sub.b	R8, R9
 			cmp.b	R8, R6
 			jl		storeSub	;B functionality, adds 0 to memory if under 0
 			mov.b	R9, 0(R10)
 			inc.w	R10
-			jmp		non44op
+			jmp		nonClearOp
 storeSub
 			mov.b	#0x00, R9
 			mov.b	R9, 0(R10)
 			inc.w	R10
-			jmp		non44op
+			jmp		nonClearOp
 
 
 
 ;-------------------------------------------------------------------------------
 ; Checks to see if the operation is an 44, and if so, adds a 00 to memory
 ;-------------------------------------------------------------------------------
-check44
-			cmp.b	#0x44, R7
+checkClear
+			cmp.b	#Clear, R7
 			jnz		end			;operation is a 55, end program
 			mov.b	#0x00, R9
 			mov.b	R9, 0(R10)
@@ -89,13 +98,13 @@ check44
 
 
 ;-------------------------------------------------------------------------------
-; Resets the program after a non 44 operation
+; Resets the program after a non clearing operation
 ;-------------------------------------------------------------------------------
-non44op
+nonClearOp
 			mov.b	R9, R6
 			mov.b	@R5+, R7
 			mov.b	@R5+, R8
-			jmp		check11
+			jmp		checkAdd
 
 
 
